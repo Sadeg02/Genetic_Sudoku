@@ -1,0 +1,3 @@
+C:/Users/Mich2/CLionProjects/Geny/cmake-build-debug/CMakeFiles/Geny.dir
+C:/Users/Mich2/CLionProjects/Geny/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/Mich2/CLionProjects/Geny/cmake-build-debug/CMakeFiles/rebuild_cache.dir
