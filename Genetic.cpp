@@ -10,12 +10,13 @@
 
 using namespace std;
 
-const int POPULATION_SIZE = 1000;
-const int GENERATIONS = 1000;
-const int BEST_COUNT = 30;
+const int POPULATION_SIZE = 500;
+const int GENERATIONS = 10000;
+const int BEST_COUNT = 50;
 const double MUTATION_RATE = 0.2;
 const int BOARD_SIZE = 9;
 const int SUBGRID_SIZE = 3;
+const int NUM_RUNS = 10;
 
 struct Individual {
     vector<vector<int>> board;
@@ -261,7 +262,7 @@ vector<Individual> generate_population(const vector<vector<int>>& initial_board,
 vector<vector<int>> genetic_algorithm(const vector<vector<int>>& initial_board) {
     vector<Individual> first_population = generate_first_population(initial_board); // Generujemy początkową populację
     vector<Individual> best_individuals = select_best_individuals(first_population); // Przechowujemy najlepsze jednostki z pierwszej
-
+    vector<Individual> next_population;
 
     for (int generation = 0; generation < GENERATIONS; ++generation) {
         // Wyświetlamy informacje o aktualnej generacji
@@ -272,9 +273,11 @@ vector<vector<int>> genetic_algorithm(const vector<vector<int>>& initial_board) 
         //przerywamy jesli osisagniemy pełne sudoku
         if(best_individuals[0].quality==0){
             break;
+        }else {
+            next_population.clear();
         }
         // Tworzymy nową populację z najlepszych jednostek
-        vector<Individual> next_population = generate_population(initial_board, best_individuals);
+        next_population = generate_population(initial_board, best_individuals);
         best_individuals = select_best_individuals(next_population);
     }
     return best_individuals[0].board;
@@ -358,7 +361,7 @@ int main() {
             {0, 0, 0, 9, 0, 0, 7, 0, 5},
             {0, 0, 9, 0, 4, 0, 2, 0, 0},
             {1, 0, 2, 0, 0, 6, 0, 0, 0},
-            {0, 0, 4, 6, 0, 0, 0, 0, 4},
+            {0, 0, 4, 6, 0, 0, 0, 0, 0},
             {3, 0, 0, 0, 0, 9, 0, 0, 0},
             {9, 2, 5, 0, 0, 0, 0, 0, 4}
     };

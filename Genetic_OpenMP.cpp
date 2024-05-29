@@ -8,16 +8,19 @@
 #include <set>
 #include <chrono>
 #include <omp.h>
+#include <numeric>
+#include <iomanip>
 
 using namespace std;
 
-const int POPULATION_SIZE = 1000;
-const int GENERATIONS = 1000;
-const int BEST_COUNT = 30;
+const int POPULATION_SIZE = 500;
+const int GENERATIONS = 10000;
+const int BEST_COUNT = 50;
 const double MUTATION_RATE = 0.2;
 const int BOARD_SIZE = 9;
 const int SUBGRID_SIZE = 3;
-const int THREADS = 10;
+const int THREADS = 4;
+const int NUM_RUNS = 1;
 
 struct Individual {
     vector<vector<int>> board;
@@ -147,12 +150,12 @@ vector<Individual> generate_first_population(const vector<vector<int>>& initial_
     print_board(initial_board);
     cout<<endl;
     vector<Individual> population;
-#pragma omp parallel for num_threads(10)
+    #pragma omp parallel for num_threads(THREADS)
     for (int i = 0; i < POPULATION_SIZE; ++i) {
         Individual individual;
         individual.board = fill_sudoku(initial_board); // Wypełnij planszę Sudoku dla nowego osobnika
         individual.quality = count_empty_cells(individual.board); // Oblicz jakość planszy dla nowego osobnika
-#pragma omp critical
+    #pragma omp critical
         population.push_back(individual); // Dodaj nowego osobnika do populacji
     }
     return population;
@@ -248,7 +251,7 @@ vector<Individual> generate_population(const vector<vector<int>>& initial_board,
     vector<Individual> population;
 
     // Generujemy dzieci z najlepszych jednostek populacji
-#pragma omp parallel for num_threads(10)
+    #pragma omp for schedule(dynamic)
     for (int i = 0; i < POPULATION_SIZE; ++i) {
         // Losowo wybieramy parę rodziców spośród najlepszych jednostek
         const auto& parent1 = best_individuals[rand() % BEST_COUNT];
@@ -257,40 +260,16 @@ vector<Individual> generate_population(const vector<vector<int>>& initial_board,
         Individual individual;
         individual.board = create_child(initial_board, parent1.board, parent2.board); // Generujemy dziecko z rodziców
         individual.quality = count_empty_cells(individual.board); // Obliczamy jakość planszy dla nowego osobnika
-#pragma omp critical
+        #pragma omp critical
         population.push_back(individual); // Dodajemy nowego osobnika do populacji
+
     }
 
     return population;
 }
 
-vector<vector<int>> genetic_algorithm(const vector<vector<int>>& initial_board) {
-    vector<Individual> first_population = generate_first_population(initial_board); // Generujemy początkową populację
-    vector<Individual> best_individuals = select_best_individuals(first_population); // Przechowujemy najlepsze jednostki z pierwszej
-
-
-    for (int generation = 0; generation < GENERATIONS; ++generation) {
-        // Wyświetlamy informacje o aktualnej generacji
-        cout << "Generation: " << generation + 1 << ", Best Quality: " << best_individuals[0].quality << endl;
-        cout << "Best Quality Board" << endl;
-        print_board(best_individuals[0].board);
-
-        //przerywamy jesli osisagniemy pełne sudoku
-        if(best_individuals[0].quality==0){
-            break;
-        }
-        // Tworzymy nową populację z najlepszych jednostek
-        vector<Individual> next_population = generate_population(initial_board, best_individuals);
-        best_individuals = select_best_individuals(next_population);
-    }
-    return best_individuals[0].board;
-}
-
-
-
-
 // Funkcja sprawdzająca, czy plansza Sudoku spełnia wszystkie reguły gry
-bool is_valid_board(const vector<vector<int>>& board) {
+bool is_valid_sudoku(const vector<vector<int>>& board) {
     // Sprawdzamy wiersze i kolumny
     for (int i = 0; i < BOARD_SIZE; ++i) {
         set<int> row_nums;
@@ -323,9 +302,91 @@ bool is_valid_board(const vector<vector<int>>& board) {
             }
         }
     }
+    if(count_empty_cells(board)==0){
+        return true;// Plansza jest poprawna
+    }else{
+        return false;
+    }
 
-    return true; // Plansza jest poprawna
 }
+
+vector<vector<int>> genetic_algorithm(const vector<vector<int>>& initial_board) {
+    vector<Individual> first_population = generate_first_population(initial_board); // Generate initial population
+    vector<Individual> best_individuals = select_best_individuals(first_population); // Select best individuals from initial population
+    vector<Individual> next_population;
+    bool found_solution = false;
+    int generation;
+
+#pragma omp parallel num_threads(THREADS) shared(best_individuals, next_population, found_solution)
+    {
+        for (generation = 0; generation < GENERATIONS; ++generation) {
+#pragma omp barrier // Ensure all threads reach this point before checking found_solution
+#pragma omp flush(found_solution)
+            if (found_solution || generation >= GENERATIONS) {
+#pragma omp cancel parallel
+                break;
+            }
+
+#pragma omp single
+            {
+                cout << "Generation: " << generation + 1 << ", Best Quality: " << best_individuals[0].quality << endl;
+                cout << "Best Quality Board" << endl;
+                print_board(best_individuals[0].board);
+
+                // Break if we achieve a complete Sudoku
+                if (best_individuals[0].quality == 0) {
+                    if (is_valid_sudoku(best_individuals[0].board)) {
+                        found_solution = true;
+                    } else {
+                        cout << "Invalid Sudoku found with quality 0, continuing search..." << endl;
+                    }
+                } else {
+                    next_population.clear();
+                }
+#pragma omp flush(found_solution)
+            }
+
+#pragma omp barrier // Ensure all threads reach this point before checking found_solution
+#pragma omp flush(found_solution)
+            if (found_solution || generation >= GENERATIONS) {
+#pragma omp cancel parallel
+                break;
+            }
+
+    #pragma omp for schedule(dynamic)
+                for (int i = 0; i < POPULATION_SIZE; ++i) {
+                    const auto& parent1 = best_individuals[rand() % BEST_COUNT];
+                    const auto& parent2 = best_individuals[rand() % BEST_COUNT];
+
+                    Individual individual;
+                    individual.board = create_child(initial_board, parent1.board, parent2.board); // Generate child from parents
+                    individual.quality = count_empty_cells(individual.board); // Calculate board quality for the new individual
+
+    #pragma omp critical
+                    {
+                        next_population.push_back(individual); // Add new individual to the population
+                    }
+                }
+#pragma omp critical
+            {
+#pragma omp flush(next_population)
+                best_individuals = select_best_individuals(next_population);
+
+            }
+            //int tid = omp_get_thread_num();
+            //printf("Przydzielenie zasobow lokalnych tid=%d\n",tid);
+#pragma omp flush(generation)
+        }
+    }
+
+    return best_individuals[0].board;
+}
+
+
+
+
+
+
 
 int main() {
     int max_threads = omp_get_max_threads();
@@ -366,23 +427,33 @@ int main() {
             {0, 0, 0, 9, 0, 0, 7, 0, 5},
             {0, 0, 9, 0, 4, 0, 2, 0, 0},
             {1, 0, 2, 0, 0, 6, 0, 0, 0},
-            {0, 0, 4, 6, 0, 0, 0, 0, 4},
+            {0, 0, 4, 6, 0, 0, 0, 0, 0},
             {3, 0, 0, 0, 0, 9, 0, 0, 0},
             {9, 2, 5, 0, 0, 0, 0, 0, 4}
     };
 
+    vector<double> durations; // Wektor przechowujący czasy wykonania dla każdej próby
 
-    auto start = std::chrono::steady_clock::now();
-    vector<vector<int>> result = genetic_algorithm(initial_board);
-    auto end = std::chrono::steady_clock::now();
+    for (int i = 0; i < NUM_RUNS; ++i) {
+        auto start = chrono::steady_clock::now();
+        // Wykonaj algorytm genetyczny
+        vector<vector<int>> result = genetic_algorithm(initial_board);
+        auto end = chrono::steady_clock::now();
 
+        // Sprawdź, czy końcowa plansza jest poprawna
+        cout << "Is final board valid? " << (is_valid_sudoku(result) ? "Yes" : "No") << endl;
 
-    cout << "Is final board valid? " << (is_valid_board(result) ? "Yes" : "No") << endl;
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    double duration_seconds = static_cast<double>(duration.count()) / 1000.0; // Konwersja z milisekund na sekundy
+        // Oblicz czas wykonania
+        auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
+        double duration_seconds = static_cast<double>(duration.count()) / 1000.0; // Konwersja z milisekund na sekundy
+        durations.push_back(duration_seconds); // Dodaj czas wykonania do wektora
+    }
 
-// Teraz możesz wyświetlić czas wykonania
-    std::cout << "Time taken: " << duration_seconds << " seconds" << std::endl;
+    // Oblicz średni czas wykonania
+    double average_duration = accumulate(durations.begin(), durations.end(), 0.0) / durations.size();
+
+    // Wyświetl średni czas wykonania z odpowiednią precyzją
+    cout << "Average time taken over " << NUM_RUNS << " runs: " << fixed << setprecision(6) << average_duration << " seconds" << endl;
 
     return 0;
 }

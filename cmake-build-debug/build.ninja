@@ -49,8 +49,8 @@ cmake_ninja_workdir = C$:/Users/Mich2/CLionProjects/Geny/cmake-build-debug/
 
 build cmake_object_order_depends_target_Geny: phony || CMakeFiles/Geny.dir
 
-build CMakeFiles/Geny.dir/second.cpp.obj: CXX_COMPILER__Geny_unscanned_Debug C$:/Users/Mich2/CLionProjects/Geny/second.cpp || cmake_object_order_depends_target_Geny
-  DEP_FILE = CMakeFiles\Geny.dir\second.cpp.obj.d
+build CMakeFiles/Geny.dir/Genetic_OpenMP.cpp.obj: CXX_COMPILER__Geny_unscanned_Debug C$:/Users/Mich2/CLionProjects/Geny/Genetic_OpenMP.cpp || cmake_object_order_depends_target_Geny
+  DEP_FILE = CMakeFiles\Geny.dir\Genetic_OpenMP.cpp.obj.d
   FLAGS = -fopenmp -g -fdiagnostics-color=always
   OBJECT_DIR = CMakeFiles\Geny.dir
   OBJECT_FILE_DIR = CMakeFiles\Geny.dir
@@ -63,7 +63,7 @@ build CMakeFiles/Geny.dir/second.cpp.obj: CXX_COMPILER__Geny_unscanned_Debug C$:
 #############################################
 # Link the executable Geny.exe
 
-build Geny.exe: CXX_EXECUTABLE_LINKER__Geny_Debug CMakeFiles/Geny.dir/second.cpp.obj
+build Geny.exe: CXX_EXECUTABLE_LINKER__Geny_Debug CMakeFiles/Geny.dir/Genetic_OpenMP.cpp.obj
   FLAGS = -fopenmp -g
   LINK_LIBRARIES = -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\Geny.dir
