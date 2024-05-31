@@ -10,9 +10,9 @@
 
 using namespace std;
 
-const int POPULATION_SIZE = 500;
+const int POPULATION_SIZE = 300;
 const int GENERATIONS = 10000;
-const int BEST_COUNT = 50;
+const int BEST_COUNT = 30;
 const double MUTATION_RATE = 0.2;
 const int BOARD_SIZE = 9;
 const int SUBGRID_SIZE = 3;

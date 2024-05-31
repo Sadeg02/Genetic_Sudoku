@@ -13,13 +13,13 @@
 
 using namespace std;
 
-const int POPULATION_SIZE = 500;
+const int POPULATION_SIZE = 300;
 const int GENERATIONS = 10000;
-const int BEST_COUNT = 50;
+const int BEST_COUNT = 30;
 const double MUTATION_RATE = 0.2;
 const int BOARD_SIZE = 9;
 const int SUBGRID_SIZE = 3;
-const int THREADS = 4;
+const int THREADS = 10;
 const int NUM_RUNS = 1;
 
 struct Individual {
@@ -315,15 +315,13 @@ vector<vector<int>> genetic_algorithm(const vector<vector<int>>& initial_board) 
     vector<Individual> best_individuals = select_best_individuals(first_population); // Select best individuals from initial population
     vector<Individual> next_population;
     bool found_solution = false;
-    int generation;
 
 #pragma omp parallel num_threads(THREADS) shared(best_individuals, next_population, found_solution)
     {
-        for (generation = 0; generation < GENERATIONS; ++generation) {
+        for (int generation = 0; generation < GENERATIONS; ++generation) {
 #pragma omp barrier // Ensure all threads reach this point before checking found_solution
 #pragma omp flush(found_solution)
             if (found_solution || generation >= GENERATIONS) {
-#pragma omp cancel parallel
                 break;
             }
 
@@ -343,13 +341,11 @@ vector<vector<int>> genetic_algorithm(const vector<vector<int>>& initial_board) 
                 } else {
                     next_population.clear();
                 }
-#pragma omp flush(found_solution)
             }
 
 #pragma omp barrier // Ensure all threads reach this point before checking found_solution
 #pragma omp flush(found_solution)
             if (found_solution || generation >= GENERATIONS) {
-#pragma omp cancel parallel
                 break;
             }
 
@@ -367,15 +363,10 @@ vector<vector<int>> genetic_algorithm(const vector<vector<int>>& initial_board) 
                         next_population.push_back(individual); // Add new individual to the population
                     }
                 }
-#pragma omp critical
-            {
-#pragma omp flush(next_population)
-                best_individuals = select_best_individuals(next_population);
 
-            }
+                best_individuals = select_best_individuals(next_population);
             //int tid = omp_get_thread_num();
             //printf("Przydzielenie zasobow lokalnych tid=%d\n",tid);
-#pragma omp flush(generation)
         }
     }
 

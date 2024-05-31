@@ -10,6 +10,6 @@ if(OpenMP_CXX_FOUND)
 endif()
 
 add_executable(Geny
-        #Genetic.cpp
-        Genetic_OpenMP.cpp
+        Genetic.cpp
+        #Genetic_OpenMP.cpp
 )
